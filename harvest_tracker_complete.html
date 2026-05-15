@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Harvest Tracker - Alexa's Moestuin</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; 
+            background: #f5f5f5; 
+            color: #1a1a1a;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        /* LOGIN PAGE */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2d5016, #5a9e2d);
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        .login-card h1 { 
+            font-size: 24px; 
+            margin-bottom: 10px; 
+            color: #2d5016;
+        }
+        .login-card p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #2d5016;
+            box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1);
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            width: 100%;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: #2d5016;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #1f3810;
+        }
+        
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, #2d5016, #5a9e2d);
+            color: white;
+            padding: 20px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 24px; }
+        .header p { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-btn.active {
+            color: #2d5016;
+            border-bottom-color: #2d5016;
+            font-weight: 600;
+        }
+        
+        /* CARDS */
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f0f8e8, #e8f4d4);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2d5016;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d5016;
+            margin-top: 5px;
+        }
+        
+        /* TABLES */
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: #f8f8f8;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover { background: #f9f9f9; }
+        
+        /* FORM */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        /* VISIBILITY */
+        .hidden { display: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        /* EMPTY STATE */
+        .empty-message {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .tabs {
+                flex-direction: column;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <h1>🌱 Harvest Tracker</h1>
+            <p>Alexa's Moestuin Oogst Logger</p>
+            
+            <div class="form-group">
+                <label>Wachtwoord (Admin)</label>
+                <input type="password" id="adminPassword" placeholder="Voer wachtwoord in" onkeypress="if(event.key==='Enter') adminLogin()">
+            </div>
+            
+            <button class="btn btn-primary" onclick="adminLogin()">🔐 Admin Login</button>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center;">
+                <button class="btn btn-primary" style="background: #5a9e2d; margin-bottom: 10px;" onclick="viewPublic()">👁️ Public Pagina Zien</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN DASHBOARD -->
+    <div id="adminPage" class="hidden">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🌱 Harvest Tracker Admin</h1>
+                    <p>Alexa's Moestuin Oogst Logger</p>
+                </div>
+                <button class="logout-btn" onclick="adminLogout()">Logout</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('daily-log', event)">📝 Dagelijks Logboek</button>
+                <button class="tab-btn" onclick="switchTab('weekly', event)">📊 Wekelijks</button>
+                <button class="tab-btn" onclick="switchTab('monthly', event)">📈 Maandelijks</button>
+                <button class="tab-btn" onclick="switchTab('processing', event)">🔪 Verwerking</button>
+                <button class="tab-btn" onclick="switchTab('analytics', event)">📉 Analytics</button>
+            </div>
+
+            <!-- DAILY LOG -->
+            <div id="daily-log" class="tab-content active">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📝 Voeg Oogst Toe</h2>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Datum</label>
+                            <input type="date" id="formDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Plant</label>
+                            <select id="formPlant">
+                                <option value="tomaat_kerstomaat">🍅 Kerstomaat</option>
+                                <option value="tomaat_coeur_de_boeuf">🍅 Coeur de Boeuf</option>
+                                <option value="tomaat_zebra">🍅 Zebra</option>
+                                <option value="tomaat_indigo">🍅 Indigo</option>
+                                <option value="courgette">🟢 Courgette</option>
+                                <option value="komkommer">🟦 Komkommer</option>
+                                <option value="augurk">🟦 Augurk</option>
+                                <option value="paprika_spaanse">🌶️ Paprika Spaanse</option>
+                                <option value="jalapeno">🌶️ Jalapeño</option>
+                                <option value="aubergine">🟣 Aubergine</option>
+                                <option value="rode_kool">🔴 Rode Kool</option>
+                                <option value="selder">🥬 Selder</option>
+                                <option value="snap">🟡 Snap</option>
+                                <option value="muismeloen">🍈 Muismeloen</option>
+                                <option value="rabarber">🌿 Rabarber</option>
+                                <option value="lavender">💜 Lavender</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Aantal Stuks</label>
+                            <input type="number" id="formPieces" placeholder="bijv. 5">
+                        </div>
+                        <div class="form-group">
+                            <label>Gewicht (kg)</label>
+                            <input type="number" id="formWeight" placeholder="bijv. 2.5" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Verwerking</label>
+                            <select id="formProcessing">
+                                <option>Vers eten</option>
+                                <option>Weck/Inmaak</option>
+                                <option>Dehydreren</option>
+                                <option>Invriezer</option>
+                                <option>Fermenteren</option>
+                                <option>Verwerking (overig)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Opmerkingen</label>
+                            <input type="text" id="formNotes" placeholder="bijv. bijzonder groot">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="addHarvest()" style="margin-top: 15px;">➕ Voeg Oogst Toe</button>
+                </div>
+
+                <div class="stats-grid" id="dailyStats"></div>
+
+                <div class="card">
+                    <h2 style="margin-bottom: 15px; font-size: 18px;">📋 Recente Oogsten</h2>
+                    <div class="table-responsive">
+                        <table id="dailyTable">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Plant</th>
+                                    <th>Stuks</th>
+                                    <th>Gewicht</th>
+                                    <th>Prijs/kg</th>
+                                    <th>Besparing</th>
+                                    <th>Verwerking</th>
+                                    <th>Actie</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WEEKLY -->
+            <div id="weekly" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📊 Wekelijks Overzicht</h2>
+                    <div class="table-responsive">
+                        <table id="weeklyTable">
+                            <thead>
+                                <tr>
+                                    <th>Week</th>
+                                    <th>Totaal Gewicht</th>
+                                    <th>Totale Besparing</th>
+                                    <th>Aantal Items</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklyTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="weeklyEmpty" class="empty-message">Nog geen gegevens</div>
+                </div>
+            </div>
+
+            <!-- MONTHLY -->
+            <div id="monthly" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📈 Maandelijks Overzicht</h2>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                        <div class="form-group">
+                            <label>Maand</label>
+                            <select id="selectedMonth" onchange="updateMonthly()">
+                                <option value="0">Januari</option>
+                                <option value="1">Februari</option>
+                                <option value="2">Maart</option>
+                                <option value="3">April</option>
+                                <option value="4" selected>Mei</option>
+                                <option value="5">Juni</option>
+                                <option value="6">Juli</option>
+                                <option value="7">Augustus</option>
+                                <option value="8">September</option>
+                                <option value="9">Oktober</option>
+                                <option value="10">November</option>
+                                <option value="11">December</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Jaar</label>
+                            <select id="selectedYear" onchange="updateMonthly()">
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026" selected>2026</option>
+                                <option value="2027">2027</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid" id="monthlyStats"></div>
+
+                    <h3 style="margin-top: 25px; margin-bottom: 15px; font-size: 16px;">Detail per Plant</h3>
+                    <div class="table-responsive">
+                        <table id="monthlyTable">
+                            <thead>
+                                <tr>
+                                    <th>Plant</th>
+                                    <th>Aantal</th>
+                                    <th>Gewicht</th>
+                                    <th>Besparing</th>
+                                </tr>
+                            </thead>
+                            <tbody id="monthlyTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="monthlyEmpty" class="empty-message">Geen gegevens</div>
+                </div>
+            </div>
+
+            <!-- PROCESSING -->
+            <div id="processing" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">🔪 Verwerking Overzicht</h2>
+                    <div class="table-responsive">
+                        <table id="processingTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Items</th>
+                                    <th>Gewicht</th>
+                                    <th>Waarde</th>
+                                </tr>
+                            </thead>
+                            <tbody id="processingTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="processingEmpty" class="empty-message">Geen gegevens</div>
+                </div>
+            </div>
+
+            <!-- ANALYTICS -->
+            <div id="analytics" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📉 Analytics</h2>
+                    <div class="stats-grid" id="analyticsStats"></div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 16px;">Top 5 Planten</h3>
+                    <div class="table-responsive">
+                        <table id="analyticsTable">
+                            <thead>
+                                <tr>
+                                    <th>Plant</th>
+                                    <th>Oogsten</th>
+                                    <th>Gewicht</th>
+                                    <th>Waarde</th>
+                                </tr>
+                            </thead>
+                            <tbody id="analyticsTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="analyticsEmpty" class="empty-message">Geen gegevens</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PUBLIC DASHBOARD -->
+    <div id="publicPage" class="hidden">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🌱 Alexa's Moestuin Harvest Tracker</h1>
+                    <p>Volg de oogst van dit seizoen!</p>
+                </div>
+                <button class="logout-btn" onclick="backToLogin()">← Terug</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTabPublic('public-overview', event)">📊 Overzicht</button>
+                <button class="tab-btn" onclick="switchTabPublic('public-weekly', event)">📈 Deze Week</button>
+                <button class="tab-btn" onclick="switchTabPublic('public-plants', event)">🌱 Top Planten</button>
+                <button class="tab-btn" onclick="switchTabPublic('public-processing', event)">🔪 Verwerking</button>
+            </div>
+
+            <!-- OVERVIEW -->
+            <div id="public-overview" class="tab-content active">
+                <div class="stats-grid" id="publicStats"></div>
+
+                <div class="card">
+                    <h2 style="margin-bottom: 15px; font-size: 18px;">📋 Laatste Oogsten</h2>
+                    <div class="table-responsive">
+                        <table id="publicTable">
+                            <thead>
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Plant</th>
+                                    <th>Gewicht</th>
+                                    <th>Besparing</th>
+                                    <th>Verwerking</th>
+                                </tr>
+                            </thead>
+                            <tbody id="publicTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WEEKLY PUBLIC -->
+            <div id="public-weekly" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📈 Wekelijks</h2>
+                    <div class="table-responsive">
+                        <table id="publicWeeklyTable">
+                            <thead>
+                                <tr>
+                                    <th>Week</th>
+                                    <th>Totaal Gewicht</th>
+                                    <th>Totale Besparing</th>
+                                </tr>
+                            </thead>
+                            <tbody id="publicWeeklyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOP PLANTS -->
+            <div id="public-plants" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">🌱 Top Planten (Waarde)</h2>
+                    <div class="table-responsive">
+                        <table id="publicPlantsTable">
+                            <thead>
+                                <tr>
+                                    <th>Plant</th>
+                                    <th>Oogsten</th>
+                                    <th>Gewicht</th>
+                                    <th>Waarde</th>
+                                </tr>
+                            </thead>
+                            <tbody id="publicPlantsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROCESSING PUBLIC -->
+            <div id="public-processing" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">🔪 Verwerking</h2>
+                    <div class="table-responsive">
+                        <table id="publicProcessingTable">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Items</th>
+                                    <th>Gewicht</th>
+                                    <th>Waarde</th>
+                                </tr>
+                            </thead>
+                            <tbody id="publicProcessingTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CORRECT_PASSWORD = CryptoJS.SHA256("Alexavdd32").toString();
+        
+        const DELHAIZE_PRICES = {
+            jan: { tomaat_kerstomaat: 3.50, tomaat_coeur_de_boeuf: 3.50, tomaat_zebra: 3.50, tomaat_indigo: 3.50, courgette: 2.50, komkommer: 1.80, augurk: 2.00, paprika_spaanse: 3.80, jalapeno: 4.50, aubergine: 2.80, rode_kool: 1.80, selder: 1.20, rabarber: 2.50, snap: 3.00, muismeloen: 4.00, lavender: 0 },
+            feb: { tomaat_kerstomaat: 3.80, tomaat_coeur_de_boeuf: 3.80, tomaat_zebra: 3.80, tomaat_indigo: 3.80, courgette: 2.80, komkommer: 2.00, augurk: 2.20, paprika_spaanse: 4.00, jalapeno: 4.50, aubergine: 3.00, rode_kool: 1.80, selder: 1.30, rabarber: 3.00, snap: 3.00, muismeloen: 4.50, lavender: 0 },
+            mar: { tomaat_kerstomaat: 3.50, tomaat_coeur_de_boeuf: 3.50, tomaat_zebra: 3.50, tomaat_indigo: 3.50, courgette: 2.50, komkommer: 1.80, augurk: 2.00, paprika_spaanse: 3.80, jalapeno: 4.50, aubergine: 2.80, rode_kool: 1.80, selder: 1.20, rabarber: 2.50, snap: 3.00, muismeloen: 4.00, lavender: 0 },
+            apr: { tomaat_kerstomaat: 3.20, tomaat_coeur_de_boeuf: 3.20, tomaat_zebra: 3.20, tomaat_indigo: 3.20, courgette: 2.30, komkommer: 1.60, augurk: 1.80, paprika_spaanse: 3.50, jalapeno: 4.00, aubergine: 2.50, rode_kool: 1.70, selder: 1.10, rabarber: 2.00, snap: 2.80, muismeloen: 3.50, lavender: 0 },
+            mei: { tomaat_kerstomaat: 2.80, tomaat_coeur_de_boeuf: 2.80, tomaat_zebra: 2.80, tomaat_indigo: 2.80, courgette: 1.90, komkommer: 1.40, augurk: 1.60, paprika_spaanse: 3.00, jalapeno: 3.50, aubergine: 2.20, rode_kool: 1.60, selder: 1.00, rabarber: 1.50, snap: 2.50, muismeloen: 3.00, lavender: 0 },
+            jun: { tomaat_kerstomaat: 2.50, tomaat_coeur_de_boeuf: 2.50, tomaat_zebra: 2.50, tomaat_indigo: 2.50, courgette: 1.50, komkommer: 1.20, augurk: 1.40, paprika_spaanse: 2.50, jalapeno: 3.00, aubergine: 1.80, rode_kool: 1.50, selder: 0.90, rabarber: 1.00, snap: 2.00, muismeloen: 2.50, lavender: 0.50 },
+            jul: { tomaat_kerstomaat: 1.80, tomaat_coeur_de_boeuf: 1.80, tomaat_zebra: 1.80, tomaat_indigo: 1.80, courgette: 0.99, komkommer: 0.80, augurk: 1.00, paprika_spaanse: 1.80, jalapeno: 2.50, aubergine: 1.40, rode_kool: 1.40, selder: 0.80, rabarber: 0, snap: 1.50, muismeloen: 2.00, lavender: 0.50 },
+            aug: { tomaat_kerstomaat: 1.60, tomaat_coeur_de_boeuf: 1.60, tomaat_zebra: 1.60, tomaat_indigo: 1.60, courgette: 0.89, komkommer: 0.70, augurk: 0.90, paprika_spaanse: 1.60, jalapeno: 2.20, aubergine: 1.30, rode_kool: 1.30, selder: 0.75, rabarber: 0, snap: 1.40, muismeloen: 1.80, lavender: 0.50 },
+            sep: { tomaat_kerstomaat: 2.00, tomaat_coeur_de_boeuf: 2.00, tomaat_zebra: 2.00, tomaat_indigo: 2.00, courgette: 1.20, komkommer: 1.00, augurk: 1.20, paprika_spaanse: 2.00, jalapeno: 2.80, aubergine: 1.60, rode_kool: 1.40, selder: 0.85, rabarber: 0, snap: 1.80, muismeloen: 2.20, lavender: 0.50 },
+            okt: { tomaat_kerstomaat: 2.50, tomaat_coeur_de_boeuf: 2.50, tomaat_zebra: 2.50, tomaat_indigo: 2.50, courgette: 1.50, komkommer: 1.40, augurk: 1.60, paprika_spaanse: 2.80, jalapeno: 3.50, aubergine: 2.00, rode_kool: 1.50, selder: 0.95, rabarber: 0, snap: 2.20, muismeloen: 2.80, lavender: 0 },
+            nov: { tomaat_kerstomaat: 3.00, tomaat_coeur_de_boeuf: 3.00, tomaat_zebra: 3.00, tomaat_indigo: 3.00, courgette: 2.00, komkommer: 1.80, augurk: 2.00, paprika_spaanse: 3.50, jalapeno: 4.00, aubergine: 2.50, rode_kool: 1.60, selder: 1.10, rabarber: 0, snap: 2.80, muismeloen: 3.50, lavender: 0 },
+            dec: { tomaat_kerstomaat: 3.50, tomaat_coeur_de_boeuf: 3.50, tomaat_zebra: 3.50, tomaat_indigo: 3.50, courgette: 2.50, komkommer: 2.00, augurk: 2.20, paprika_spaanse: 4.00, jalapeno: 4.50, aubergine: 3.00, rode_kool: 1.80, selder: 1.30, rabarber: 0, snap: 3.20, muismeloen: 4.50, lavender: 0 }
+        };
+
+        const PLANT_LABELS = {
+            tomaat_kerstomaat: '🍅 Kerstomaat',
+            tomaat_coeur_de_boeuf: '🍅 Coeur de Boeuf',
+            tomaat_zebra: '🍅 Zebra',
+            tomaat_indigo: '🍅 Indigo',
+            courgette: '🟢 Courgette',
+            komkommer: '🟦 Komkommer',
+            augurk: '🟦 Augurk',
+            paprika_spaanse: '🌶️ Paprika Spaanse',
+            jalapeno: '🌶️ Jalapeño',
+            aubergine: '🟣 Aubergine',
+            rode_kool: '🔴 Rode Kool',
+            selder: '🥬 Selder',
+            snap: '🟡 Snap',
+            muismeloen: '🍈 Muismeloen',
+            rabarber: '🌿 Rabarber',
+            lavender: '💜 Lavender'
+        };
+
+        let harvests = JSON.parse(localStorage.getItem('harvests') || '[]');
+        let isAdmin = false;
+
+        // Init
+        document.getElementById('formDate').valueAsDate = new Date();
+
+        function adminLogin() {
+            const pw = document.getElementById('adminPassword').value;
+            const hashed = CryptoJS.SHA256(pw).toString();
+            
+            if (hashed === CORRECT_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('adminPage').classList.remove('hidden');
+                updateDaily();
+            } else {
+                alert('❌ Fout wachtwoord!');
+                document.getElementById('adminPassword').value = '';
+            }
+        }
+
+        function adminLogout() {
+            isAdmin = false;
+            document.getElementById('adminPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('adminPassword').value = '';
+        }
+
+        function viewPublic() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('publicPage').classList.remove('hidden');
+            updatePublicDashboard();
+        }
+
+        function backToLogin() {
+            document.getElementById('publicPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        function switchTab(tabName, e) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            e.target.classList.add('active');
+
+            if (tabName === 'weekly') updateWeekly();
+            if (tabName === 'monthly') updateMonthly();
+            if (tabName === 'processing') updateProcessing();
+            if (tabName === 'analytics') updateAnalytics();
+        }
+
+        function switchTabPublic(tabName, e) {
+            document.querySelectorAll('#publicPage .tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('#publicPage .tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            e.target.classList.add('active');
+
+            if (tabName === 'public-weekly') updatePublicWeekly();
+            if (tabName === 'public-plants') updatePublicPlants();
+            if (tabName === 'public-processing') updatePublicProcessing();
+        }
+
+        function addHarvest() {
+            const date = document.getElementById('formDate').value;
+            const plant = document.getElementById('formPlant').value;
+            const pieces = parseInt(document.getElementById('formPieces').value) || 0;
+            const weight = parseFloat(document.getElementById('formWeight').value);
+            const processing = document.getElementById('formProcessing').value;
+            const notes = document.getElementById('formNotes').value;
+
+            if (!weight || weight <= 0) {
+                alert('Voer een geldig gewicht in!');
+                return;
+            }
+
+            const monthKey = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'][new Date(date).getMonth()];
+            const price = DELHAIZE_PRICES[monthKey][plant] || 0;
+            const savings = weight * price;
+
+            const harvest = {
+                id: Date.now(),
+                date,
+                plant,
+                pieces,
+                weight,
+                price,
+                savings,
+                processing,
+                notes
+            };
+
+            harvests.push(harvest);
+            localStorage.setItem('harvests', JSON.stringify(harvests));
+
+            document.getElementById('formPieces').value = '';
+            document.getElementById('formWeight').value = '';
+            document.getElementById('formNotes').value = '';
+            document.getElementById('formDate').valueAsDate = new Date();
+
+            updateDaily();
+            alert('✅ Oogst toegevoegd!');
+        }
+
+        function deleteHarvest(id) {
+            if (confirm('Zeker?')) {
+                harvests = harvests.filter(h => h.id !== id);
+                localStorage.setItem('harvests', JSON.stringify(harvests));
+                updateDaily();
+            }
+        }
+
+        function updateDaily() {
+            const total = harvests.reduce((sum, h) => sum + h.weight, 0);
+            const savings = harvests.reduce((sum, h) => sum + h.savings, 0);
+            const avg = harvests.length > 0 ? savings / total : 0;
+
+            document.getElementById('dailyStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Totale Oogst</div>
+                    <div class="stat-value">${total.toFixed(1)} kg</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Totale Besparing</div>
+                    <div class="stat-value">€ ${savings.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Gemiddelde Prijs/kg</div>
+                    <div class="stat-value">€ ${avg.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Aantal Oogsten</div>
+                    <div class="stat-value">${harvests.length}</div>
+                </div>
+            `;
+
+            const tbody = document.getElementById('dailyTableBody');
+            tbody.innerHTML = [...harvests].reverse().slice(0, 20).map(h => `
+                <tr>
+                    <td>${h.date}</td>
+                    <td>${PLANT_LABELS[h.plant]}</td>
+                    <td>${h.pieces}</td>
+                    <td>${h.weight.toFixed(2)} kg</td>
+                    <td>€ ${h.price.toFixed(2)}</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${h.savings.toFixed(2)}</td>
+                    <td>${h.processing}</td>
+                    <td><button class="btn btn-primary" style="background: #e74c3c;" onclick="deleteHarvest(${h.id})">Verwijder</button></td>
+                </tr>
+            `).join('');
+        }
+
+        function updateWeekly() {
+            const weeks = {};
+            const monthNames = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+            
+            harvests.forEach(h => {
+                const d = new Date(h.date);
+                const weekNum = Math.ceil(d.getDate() / 7);
+                const key = `Week ${weekNum} ${monthNames[d.getMonth()]}`;
+                if (!weeks[key]) weeks[key] = { weight: 0, savings: 0, items: 0 };
+                weeks[key].weight += h.weight;
+                weeks[key].savings += h.savings;
+                weeks[key].items += 1;
+            });
+
+            const tbody = document.getElementById('weeklyTableBody');
+            tbody.innerHTML = Object.entries(weeks).map(([week, stats]) => `
+                <tr>
+                    <td>${week}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                    <td>${stats.items}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateMonthly() {
+            const month = parseInt(document.getElementById('selectedMonth').value);
+            const year = parseInt(document.getElementById('selectedYear').value);
+            
+            const monthlyHarvests = harvests.filter(h => {
+                const d = new Date(h.date);
+                return d.getMonth() === month && d.getFullYear() === year;
+            });
+
+            const total = monthlyHarvests.reduce((sum, h) => sum + h.weight, 0);
+            const savings = monthlyHarvests.reduce((sum, h) => sum + h.savings, 0);
+
+            document.getElementById('monthlyStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Maand Gewicht</div>
+                    <div class="stat-value">${total.toFixed(1)} kg</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Maand Besparing</div>
+                    <div class="stat-value">€ ${savings.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Aantal</div>
+                    <div class="stat-value">${monthlyHarvests.length}</div>
+                </div>
+            `;
+
+            const plants = {};
+            monthlyHarvests.forEach(h => {
+                if (!plants[h.plant]) plants[h.plant] = { count: 0, weight: 0, savings: 0 };
+                plants[h.plant].count += 1;
+                plants[h.plant].weight += h.weight;
+                plants[h.plant].savings += h.savings;
+            });
+
+            const tbody = document.getElementById('monthlyTableBody');
+            tbody.innerHTML = Object.entries(plants).map(([plant, stats]) => `
+                <tr>
+                    <td>${PLANT_LABELS[plant]}</td>
+                    <td>${stats.count}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateProcessing() {
+            const processing = {};
+            harvests.forEach(h => {
+                if (!processing[h.processing]) processing[h.processing] = { items: 0, weight: 0, savings: 0 };
+                processing[h.processing].items += 1;
+                processing[h.processing].weight += h.weight;
+                processing[h.processing].savings += h.savings;
+            });
+
+            const tbody = document.getElementById('processingTableBody');
+            tbody.innerHTML = Object.entries(processing).sort((a, b) => b[1].savings - a[1].savings).map(([type, stats]) => `
+                <tr>
+                    <td>${type}</td>
+                    <td>${stats.items}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateAnalytics() {
+            const total = harvests.reduce((sum, h) => sum + h.weight, 0);
+            const savings = harvests.reduce((sum, h) => sum + h.savings, 0);
+
+            const plants = {};
+            harvests.forEach(h => {
+                if (!plants[h.plant]) plants[h.plant] = { count: 0, weight: 0, savings: 0 };
+                plants[h.plant].count += 1;
+                plants[h.plant].weight += h.weight;
+                plants[h.plant].savings += h.savings;
+            });
+
+            const topPlant = Object.entries(plants).length > 0 ? PLANT_LABELS[Object.entries(plants).sort((a, b) => b[1].savings - a[1].savings)[0][0]] : 'N/A';
+
+            document.getElementById('analyticsStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">TOTAAL BESPARING</div>
+                    <div class="stat-value" style="font-size: 20px;">€ ${savings.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">TOTAAL GEWICHT</div>
+                    <div class="stat-value" style="font-size: 20px;">${total.toFixed(0)} kg</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">TOP PLANT</div>
+                    <div class="stat-value" style="font-size: 14px;">${topPlant}</div>
+                </div>
+            `;
+
+            const tbody = document.getElementById('analyticsTableBody');
+            tbody.innerHTML = Object.entries(plants).sort((a, b) => b[1].savings - a[1].savings).slice(0, 5).map(([plant, stats]) => `
+                <tr>
+                    <td>${PLANT_LABELS[plant]}</td>
+                    <td>${stats.count}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // PUBLIC DASHBOARD
+        function updatePublicDashboard() {
+            const total = harvests.reduce((sum, h) => sum + h.weight, 0);
+            const savings = harvests.reduce((sum, h) => sum + h.savings, 0);
+            const avg = harvests.length > 0 ? savings / total : 0;
+
+            document.getElementById('publicStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">🎯 Totale Oogst</div>
+                    <div class="stat-value">${total.toFixed(1)} kg</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">💚 Totale Besparing</div>
+                    <div class="stat-value">€ ${savings.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">📊 Gemiddelde/kg</div>
+                    <div class="stat-value">€ ${avg.toFixed(2)}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">✅ Aantal Oogsten</div>
+                    <div class="stat-value">${harvests.length}</div>
+                </div>
+            `;
+
+            const tbody = document.getElementById('publicTableBody');
+            tbody.innerHTML = [...harvests].reverse().slice(0, 15).map(h => `
+                <tr>
+                    <td>${h.date}</td>
+                    <td>${PLANT_LABELS[h.plant]}</td>
+                    <td>${h.weight.toFixed(2)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${h.savings.toFixed(2)}</td>
+                    <td>${h.processing}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePublicWeekly() {
+            const weeks = {};
+            const monthNames = ['jan', 'feb', 'mar', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+            
+            harvests.forEach(h => {
+                const d = new Date(h.date);
+                const weekNum = Math.ceil(d.getDate() / 7);
+                const key = `Week ${weekNum} ${monthNames[d.getMonth()]}`;
+                if (!weeks[key]) weeks[key] = { weight: 0, savings: 0 };
+                weeks[key].weight += h.weight;
+                weeks[key].savings += h.savings;
+            });
+
+            const tbody = document.getElementById('publicWeeklyTableBody');
+            tbody.innerHTML = Object.entries(weeks).map(([week, stats]) => `
+                <tr>
+                    <td>${week}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePublicPlants() {
+            const plants = {};
+            harvests.forEach(h => {
+                if (!plants[h.plant]) plants[h.plant] = { count: 0, weight: 0, savings: 0 };
+                plants[h.plant].count += 1;
+                plants[h.plant].weight += h.weight;
+                plants[h.plant].savings += h.savings;
+            });
+
+            const tbody = document.getElementById('publicPlantsTableBody');
+            tbody.innerHTML = Object.entries(plants).sort((a, b) => b[1].savings - a[1].savings).slice(0, 10).map(([plant, stats]) => `
+                <tr>
+                    <td>${PLANT_LABELS[plant]}</td>
+                    <td>${stats.count}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePublicProcessing() {
+            const processing = {};
+            harvests.forEach(h => {
+                if (!processing[h.processing]) processing[h.processing] = { items: 0, weight: 0, savings: 0 };
+                processing[h.processing].items += 1;
+                processing[h.processing].weight += h.weight;
+                processing[h.processing].savings += h.savings;
+            });
+
+            const tbody = document.getElementById('publicProcessingTableBody');
+            tbody.innerHTML = Object.entries(processing).sort((a, b) => b[1].savings - a[1].savings).map(([type, stats]) => `
+                <tr>
+                    <td>${type}</td>
+                    <td>${stats.items}</td>
+                    <td>${stats.weight.toFixed(1)} kg</td>
+                    <td style="font-weight: bold; color: #2d5016;">€ ${stats.savings.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
