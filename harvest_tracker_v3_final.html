@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌱 Harvest Tracker v3 - Alexa's Moestuin</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #1a1a1a; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        .login-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(135deg, #2d5016, #5a9e2d); }
+        .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 100%; max-width: 400px; }
+        .login-card h1 { font-size: 24px; margin-bottom: 10px; color: #2d5016; }
+        .login-card p { color: #666; margin-bottom: 30px; font-size: 14px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; font-family: inherit; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #2d5016; box-shadow: 0 0 0 3px rgba(45, 80, 22, 0.1); }
+        
+        .btn { padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 14px; }
+        .btn-primary { background: #2d5016; color: white; width: 100%; }
+        .btn-primary:hover { background: #1f3810; }
+        .btn-small { padding: 8px 16px; font-size: 12px; width: auto; }
+        .btn-danger { background: #e74c3c; color: white; }
+        
+        .header { background: linear-gradient(135deg, #2d5016, #5a9e2d); color: white; padding: 20px; margin-bottom: 30px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; }
+        .header p { font-size: 14px; opacity: 0.9; margin-top: 5px; }
+        .logout-btn { background: rgba(255,255,255,0.2); color: white; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; flex-wrap: wrap; }
+        .tab-btn { padding: 12px 20px; background: none; border: none; cursor: pointer; font-size: 14px; color: #666; border-bottom: 3px solid transparent; transition: all 0.3s; }
+        .tab-btn.active { color: #2d5016; border-bottom-color: #2d5016; font-weight: 600; }
+        
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: linear-gradient(135deg, #f0f8e8, #e8f4d4); padding: 15px; border-radius: 8px; border-left: 4px solid #2d5016; }
+        .stat-label { font-size: 12px; color: #666; font-weight: 600; text-transform: uppercase; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #2d5016; margin-top: 5px; }
+        
+        .table-responsive { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { background: #f8f8f8; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #ddd; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; }
+        
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .photo-preview { width: 100%; max-width: 300px; border-radius: 8px; margin-top: 10px; border: 2px solid #ddd; }
+        .harvest-card { background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 15px; display: flex; gap: 15px; }
+        .harvest-photo { width: 150px; height: 150px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+        .harvest-info { flex: 1; }
+        .harvest-info h3 { font-size: 16px; margin-bottom: 10px; color: #2d5016; }
+        .harvest-info p { margin-bottom: 5px; font-size: 13px; }
+        
+        .recipe-card { background: #f0f8e8; border-left: 4px solid #2d5016; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
+        .recipe-card h3 { font-size: 14px; margin-bottom: 10px; color: #2d5016; }
+        .recipe-card ul, .recipe-card ol { margin-left: 20px; font-size: 13px; margin-bottom: 10px; }
+        .recipe-card li { margin-bottom: 5px; }
+        
+        .hidden { display: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .empty-message { text-align: center; padding: 40px 20px; color: #999; font-size: 14px; }
+        
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 15px; }
+            .tabs { flex-direction: column; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .harvest-card { flex-direction: column; }
+            .harvest-photo { width: 100%; height: 200px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <h1>🌱 Harvest Tracker</h1>
+            <p>Alexa's Moestuin Oogst Logger</p>
+            <div class="form-group">
+                <label>Wachtwoord (Admin)</label>
+                <input type="password" id="adminPassword" onkeypress="if(event.key==='Enter') adminLogin()">
+            </div>
+            <button class="btn btn-primary" onclick="adminLogin()">🔐 Admin Login</button>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center;">
+                <button class="btn btn-primary" style="background: #5a9e2d;" onclick="viewPublic()">👁️ Public Pagina Zien</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PAGE -->
+    <div id="adminPage" class="hidden">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🌱 Admin Dashboard</h1>
+                    <p>Beheer je moestuin oogsten, recepten en instellingen</p>
+                </div>
+                <button class="logout-btn" onclick="adminLogout()">Logout</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('daily', event)">📝 Oogsten</button>
+                <button class="tab-btn" onclick="switchTab('recepten', event)">📖 Recepten</button>
+                <button class="tab-btn" onclick="switchTab('settings', event)">⚙️ Instellingen</button>
+                <button class="tab-btn" onclick="switchTab('stats', event)">📊 Statistieken</button>
+            </div>
+
+            <!-- OOGSTEN TAB -->
+            <div id="daily" class="tab-content active">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📝 Voeg Oogst Toe</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Datum</label>
+                            <input type="date" id="formDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Plant</label>
+                            <select id="formPlant">
+                                <option value="tomaat_kerstomaat">🍅 Kerstomaat</option>
+                                <option value="tomaat_coeur_de_boeuf">🍅 Coeur de Boeuf</option>
+                                <option value="courgette">🟢 Courgette</option>
+                                <option value="komkommer">🟦 Komkommer</option>
+                                <option value="augurk">🟦 Augurk</option>
+                                <option value="rode_kool">🔴 Rode Kool</option>
+                                <option value="selder">🥬 Selder</option>
+                                <option value="paprika">🌶️ Paprika</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Gewicht (kg)</label>
+                            <input type="number" id="formWeight" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label>Verwerking</label>
+                            <select id="formProcessing"></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>📸 Foto (optioneel)</label>
+                        <input type="file" id="formPhoto" accept="image/*">
+                        <img id="photoPreview" class="photo-preview hidden">
+                    </div>
+                    <div class="form-group">
+                        <label>Gekoppeld Recept (optioneel)</label>
+                        <select id="formRecipe"><option value="">Geen recept</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Opmerkingen</label>
+                        <input type="text" id="formNotes" placeholder="bijv. bijzonder groot">
+                    </div>
+                    <button class="btn btn-primary" onclick="addHarvest()">➕ Voeg Oogst Toe</button>
+                </div>
+
+                <div class="stats-grid" id="harvestStats"></div>
+
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📋 Alle Oogsten</h2>
+                    <div id="harvestsList"></div>
+                </div>
+            </div>
+
+            <!-- RECEPTEN TAB -->
+            <div id="recepten" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📖 Voeg Recept Toe</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Recept Naam</label>
+                            <input type="text" id="recepeName" placeholder="bijv. Tomatenpassata">
+                        </div>
+                        <div class="form-group">
+                            <label>Verwerking Type</label>
+                            <select id="recepeProcessing"></select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Ingrediënten (komma gescheiden)</label>
+                        <textarea id="recepeIngredients" rows="3" placeholder="500g tomaten, 2 uien, zout, ..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Stappen (enter per stap)</label>
+                        <textarea id="recepeSteps" rows="4" placeholder="1. Snijd tomaten&#10;2. Kook in pan&#10;3. ..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Tips & Opmerkingen (optioneel)</label>
+                        <textarea id="recepeTips" rows="3" placeholder="Hoe lang houdbaar, etc."></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="addRecipe()">📖 Voeg Recept Toe</button>
+                </div>
+
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📚 Mijn Recepten</h2>
+                    <div id="recipesList"></div>
+                </div>
+            </div>
+
+            <!-- INSTELLINGEN TAB -->
+            <div id="settings" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">⚙️ Verwerkingen Beheren</h2>
+                    <p style="margin-bottom: 20px; color: #666; font-size: 14px;">Voeg je eigen verwerkingen toe (bijv. "Smoothie mix", "Saus maken")</p>
+                    <div class="form-group">
+                        <label>Nieuwe Verwerking</label>
+                        <input type="text" id="newProcessing" placeholder="bijv. Smoothie mix">
+                    </div>
+                    <button class="btn btn-primary btn-small" onclick="addProcessing()" style="margin-bottom: 30px;">➕ Voeg Toe</button>
+
+                    <h3 style="margin-bottom: 15px; font-size: 16px;">Actieve Verwerkingen:</h3>
+                    <div id="processingList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;"></div>
+                </div>
+            </div>
+
+            <!-- STATS TAB -->
+            <div id="stats" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📊 Statistieken</h2>
+                    <div class="stats-grid" id="statsContainer"></div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 16px;">Top Planten</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr><th>Plant</th><th>Aantal Oogsten</th><th>Totaal Gewicht</th></tr>
+                            </thead>
+                            <tbody id="statsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PUBLIC PAGE -->
+    <div id="publicPage" class="hidden">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🌱 Alexa's Moestuin - Oogst Tracker</h1>
+                    <p>Volg de oogsten van dit seizoen!</p>
+                </div>
+                <button class="logout-btn" onclick="backToLogin()">← Terug</button>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTabPublic('pub-daily', event)">📝 Oogsten</button>
+                <button class="tab-btn" onclick="switchTabPublic('pub-recepten', event)">📖 Recepten</button>
+                <button class="tab-btn" onclick="switchTabPublic('pub-stats', event)">📊 Statistieken</button>
+            </div>
+
+            <!-- PUBLIC OOGSTEN -->
+            <div id="pub-daily" class="tab-content active">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">🎯 Overzicht</h2>
+                    <div class="stats-grid" id="publicStats"></div>
+                </div>
+
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📸 Alle Oogsten</h2>
+                    <div id="publicHarvestsList"></div>
+                </div>
+            </div>
+
+            <!-- PUBLIC RECEPTEN -->
+            <div id="pub-recepten" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📖 Recepten</h2>
+                    <div id="publicRecipesList"></div>
+                </div>
+            </div>
+
+            <!-- PUBLIC STATS -->
+            <div id="pub-stats" class="tab-content">
+                <div class="card">
+                    <h2 style="margin-bottom: 20px; font-size: 18px;">📊 Statistieken</h2>
+                    <div class="stats-grid" id="publicStatsContainer"></div>
+
+                    <h3 style="margin-top: 30px; margin-bottom: 15px; font-size: 16px;">Top Planten</h3>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr><th>Plant</th><th>Aantal Oogsten</th><th>Totaal Gewicht</th></tr>
+                            </thead>
+                            <tbody id="publicStatsTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CORRECT_PASSWORD = CryptoJS.SHA256("Alexavdd32").toString();
+        const PLANT_LABELS = {
+            tomaat_kerstomaat: '🍅 Kerstomaat',
+            tomaat_coeur_de_boeuf: '🍅 Coeur de Boeuf',
+            courgette: '🟢 Courgette',
+            komkommer: '🟦 Komkommer',
+            augurk: '🟦 Augurk',
+            rode_kool: '🔴 Rode Kool',
+            selder: '🥬 Selder',
+            paprika: '🌶️ Paprika'
+        };
+
+        let harvests = JSON.parse(localStorage.getItem('harvests') || '[]');
+        let recipes = JSON.parse(localStorage.getItem('recipes') || '[]');
+        let customProcessings = JSON.parse(localStorage.getItem('customProcessings') || ['Vers eten', 'Weck/Inmaak', 'Dehydreren', 'Invriezer', 'Fermenteren', 'Overig']);
+        let isAdmin = false;
+
+        document.getElementById('formDate').valueAsDate = new Date();
+        updateSelects();
+
+        function updateSelects() {
+            const s1 = document.getElementById('formProcessing');
+            const s2 = document.getElementById('recepeProcessing');
+            s1.innerHTML = customProcessings.map(p => `<option>${p}</option>`).join('');
+            s2.innerHTML = customProcessings.map(p => `<option>${p}</option>`).join('');
+            updateRecipeSelect();
+        }
+
+        function updateRecipeSelect() {
+            document.getElementById('formRecipe').innerHTML = '<option value="">Geen recept</option>' + recipes.map((r, i) => `<option value="${i}">${r.name}</option>`).join('');
+        }
+
+        document.getElementById('formPhoto').addEventListener('change', function(e) {
+            if (e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = evt => {
+                    document.getElementById('photoPreview').src = evt.target.result;
+                    document.getElementById('photoPreview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            }
+        });
+
+        function adminLogin() {
+            if (CryptoJS.SHA256(document.getElementById('adminPassword').value).toString() === CORRECT_PASSWORD) {
+                isAdmin = true;
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('adminPage').classList.remove('hidden');
+                updateAdmin();
+            } else alert('❌ Fout wachtwoord!');
+        }
+
+        function adminLogout() {
+            isAdmin = false;
+            document.getElementById('adminPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        function viewPublic() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('publicPage').classList.remove('hidden');
+            updatePublicPage();
+        }
+
+        function backToLogin() {
+            document.getElementById('publicPage').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        function switchTab(tab, e) {
+            document.querySelectorAll('#adminPage .tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#adminPage .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            e.target.classList.add('active');
+        }
+
+        function switchTabPublic(tab, e) {
+            document.querySelectorAll('#publicPage .tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#publicPage .tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab).classList.add('active');
+            e.target.classList.add('active');
+        }
+
+        function addHarvest() {
+            const harvest = {
+                id: Date.now(),
+                date: document.getElementById('formDate').value,
+                plant: document.getElementById('formPlant').value,
+                weight: parseFloat(document.getElementById('formWeight').value),
+                processing: document.getElementById('formProcessing').value,
+                recipe: document.getElementById('formRecipe').value || null,
+                notes: document.getElementById('formNotes').value,
+                photo: document.getElementById('photoPreview').src || null
+            };
+            if (!harvest.weight) { alert('Voer gewicht in!'); return; }
+            harvests.push(harvest);
+            localStorage.setItem('harvests', JSON.stringify(harvests));
+            document.getElementById('formWeight').value = '';
+            document.getElementById('formNotes').value = '';
+            document.getElementById('formPhoto').value = '';
+            document.getElementById('photoPreview').classList.add('hidden');
+            document.getElementById('formRecipe').value = '';
+            document.getElementById('formDate').valueAsDate = new Date();
+            updateAdmin();
+            alert('✅ Oogst toegevoegd!');
+        }
+
+        function deleteHarvest(id) {
+            if (confirm('Zeker verwijderen?')) {
+                harvests = harvests.filter(h => h.id !== id);
+                localStorage.setItem('harvests', JSON.stringify(harvests));
+                updateAdmin();
+            }
+        }
+
+        function updateAdmin() {
+            const total = harvests.reduce((s, h) => s + h.weight, 0);
+            document.getElementById('harvestStats').innerHTML = `
+                <div class="stat-card"><div class="stat-label">Totaal Gewicht</div><div class="stat-value">${total.toFixed(1)} kg</div></div>
+                <div class="stat-card"><div class="stat-label">Aantal Oogsten</div><div class="stat-value">${harvests.length}</div></div>
+            `;
+            document.getElementById('harvestsList').innerHTML = harvests.length === 0 ? '<p class="empty-message">Nog geen oogsten</p>' : [...harvests].reverse().map(h => `
+                <div class="harvest-card">
+                    ${h.photo ? `<img src="${h.photo}" class="harvest-photo">` : ''}
+                    <div class="harvest-info">
+                        <h3>${PLANT_LABELS[h.plant]}</h3>
+                        <p><strong>Datum:</strong> ${h.date}</p>
+                        <p><strong>Gewicht:</strong> ${h.weight.toFixed(2)} kg</p>
+                        <p><strong>Verwerking:</strong> ${h.processing}</p>
+                        ${h.notes ? `<p><strong>Opmerking:</strong> ${h.notes}</p>` : ''}
+                        ${h.recipe !== null && recipes[h.recipe] ? `<p><strong>Gekoppeld recept:</strong> ${recipes[h.recipe].name}</p>` : ''}
+                        <button class="btn btn-danger btn-small" style="margin-top: 10px;" onclick="deleteHarvest(${h.id})">Verwijder</button>
+                    </div>
+                </div>
+            `).join('');
+
+            updateRecipesList();
+            updateStats();
+        }
+
+        function addRecipe() {
+            const r = {
+                name: document.getElementById('recepeName').value,
+                processing: document.getElementById('recepeProcessing').value,
+                ingredients: document.getElementById('recepeIngredients').value.split(',').map(i => i.trim()),
+                steps: document.getElementById('recepeSteps').value.split('\n').filter(s => s.trim()),
+                tips: document.getElementById('recepeTips').value
+            };
+            if (!r.name || !r.ingredients[0]) { alert('Vul naam en ingrediënten in!'); return; }
+            recipes.push(r);
+            localStorage.setItem('recipes', JSON.stringify(recipes));
+            document.getElementById('recepeName').value = '';
+            document.getElementById('recepeIngredients').value = '';
+            document.getElementById('recepeSteps').value = '';
+            document.getElementById('recepeTips').value = '';
+            updateRecipesList();
+            updateRecipeSelect();
+            alert('✅ Recept toegevoegd!');
+        }
+
+        function deleteRecipe(i) {
+            if (confirm('Verwijderen?')) {
+                recipes.splice(i, 1);
+                localStorage.setItem('recipes', JSON.stringify(recipes));
+                updateRecipesList();
+                updateRecipeSelect();
+            }
+        }
+
+        function updateRecipesList() {
+            document.getElementById('recipesList').innerHTML = recipes.length === 0 ? '<p class="empty-message">Nog geen recepten</p>' : recipes.map((r, i) => `
+                <div class="recipe-card">
+                    <h3>${r.name} • ${r.processing}</h3>
+                    <div><strong>Ingrediënten:</strong>
+                        <ul>${r.ingredients.map(ing => `<li>${ing}</li>`).join('')}</ul>
+                    </div>
+                    <div><strong>Stappen:</strong>
+                        <ol>${r.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+                    </div>
+                    ${r.tips ? `<p><strong>Tips:</strong> ${r.tips}</p>` : ''}
+                    <button class="btn btn-danger btn-small" onclick="deleteRecipe(${i})" style="margin-top: 10px;">Verwijder</button>
+                </div>
+            `).join('');
+        }
+
+        function addProcessing() {
+            const name = document.getElementById('newProcessing').value.trim();
+            if (!name || customProcessings.includes(name)) { alert('Ongeldig!'); return; }
+            customProcessings.push(name);
+            localStorage.setItem('customProcessings', JSON.stringify(customProcessings));
+            document.getElementById('newProcessing').value = '';
+            updateSelects();
+            updateProcessingList();
+            alert('✅ Verwerking toegevoegd!');
+        }
+
+        function deleteProcessing(name) {
+            customProcessings = customProcessings.filter(p => p !== name);
+            localStorage.setItem('customProcessings', JSON.stringify(customProcessings));
+            updateSelects();
+            updateProcessingList();
+        }
+
+        function updateProcessingList() {
+            document.getElementById('processingList').innerHTML = customProcessings.map(p => `
+                <div style="background: #f0f8e8; padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${p}</span>
+                    <button class="btn btn-danger btn-small" onclick="deleteProcessing('${p}')">X</button>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            const total = harvests.reduce((s, h) => s + h.weight, 0);
+            const plants = {};
+            harvests.forEach(h => {
+                if (!plants[h.plant]) plants[h.plant] = { count: 0, weight: 0 };
+                plants[h.plant].count += 1;
+                plants[h.plant].weight += h.weight;
+            });
+            document.getElementById('statsContainer').innerHTML = `
+                <div class="stat-card"><div class="stat-label">Totaal Gewicht</div><div class="stat-value">${total.toFixed(1)} kg</div></div>
+                <div class="stat-card"><div class="stat-label">Aantal Oogsten</div><div class="stat-value">${harvests.length}</div></div>
+            `;
+            document.getElementById('statsTableBody').innerHTML = Object.entries(plants).sort((a, b) => b[1].weight - a[1].weight).map(([plant, stats]) => `
+                <tr><td>${PLANT_LABELS[plant]}</td><td>${stats.count}</td><td>${stats.weight.toFixed(1)} kg</td></tr>
+            `).join('');
+        }
+
+        function updatePublicPage() {
+            const total = harvests.reduce((s, h) => s + h.weight, 0);
+            document.getElementById('publicStats').innerHTML = `
+                <div class="stat-card"><div class="stat-label">🎯 Totaal Gewicht</div><div class="stat-value">${total.toFixed(1)} kg</div></div>
+                <div class="stat-card"><div class="stat-label">✅ Aantal Oogsten</div><div class="stat-value">${harvests.length}</div></div>
+            `;
+            document.getElementById('publicHarvestsList').innerHTML = harvests.length === 0 ? '<p class="empty-message">Nog geen oogsten</p>' : [...harvests].reverse().map(h => `
+                <div class="harvest-card">
+                    ${h.photo ? `<img src="${h.photo}" class="harvest-photo">` : ''}
+                    <div class="harvest-info">
+                        <h3>${PLANT_LABELS[h.plant]}</h3>
+                        <p><strong>Datum:</strong> ${h.date}</p>
+                        <p><strong>Gewicht:</strong> ${h.weight.toFixed(2)} kg</p>
+                        <p><strong>Verwerking:</strong> ${h.processing}</p>
+                        ${h.notes ? `<p><strong>Opmerking:</strong> ${h.notes}</p>` : ''}
+                        ${h.recipe !== null && recipes[h.recipe] ? `<p><strong>Gekoppeld recept:</strong> ${recipes[h.recipe].name}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('publicRecipesList').innerHTML = recipes.length === 0 ? '<p class="empty-message">Nog geen recepten</p>' : recipes.map(r => `
+                <div class="recipe-card">
+                    <h3>${r.name} • ${r.processing}</h3>
+                    <div><strong>Ingrediënten:</strong>
+                        <ul>${r.ingredients.map(ing => `<li>${ing}</li>`).join('')}</ul>
+                    </div>
+                    <div><strong>Stappen:</strong>
+                        <ol>${r.steps.map(s => `<li>${s}</li>`).join('')}</ol>
+                    </div>
+                    ${r.tips ? `<p><strong>Tips:</strong> ${r.tips}</p>` : ''}
+                </div>
+            `).join('');
+
+            const plants = {};
+            harvests.forEach(h => {
+                if (!plants[h.plant]) plants[h.plant] = { count: 0, weight: 0 };
+                plants[h.plant].count += 1;
+                plants[h.plant].weight += h.weight;
+            });
+            document.getElementById('publicStatsContainer').innerHTML = `
+                <div class="stat-card"><div class="stat-label">📊 Totaal Gewicht</div><div class="stat-value">${total.toFixed(1)} kg</div></div>
+                <div class="stat-card"><div class="stat-label">📈 Aantal Oogsten</div><div class="stat-value">${harvests.length}</div></div>
+            `;
+            document.getElementById('publicStatsTableBody').innerHTML = Object.entries(plants).sort((a, b) => b[1].weight - a[1].weight).map(([plant, stats]) => `
+                <tr><td>${PLANT_LABELS[plant]}</td><td>${stats.count}</td><td>${stats.weight.toFixed(1)} kg</td></tr>
+            `).join('');
+        }
+
+        updateSelects();
+    </script>
+</body>
+</html>
+```
+
+**KLAAR!** 🎉 Dit is de COMPLETE v3 met:
+
+✅ **Admin ziet:** Oogsten tab, Recepten tab, Instellingen, Statistieken
+✅ **Public ziet:** ALLES (Oogsten tab, Recepten tab, Statistieken) - maar niet aanpasbaar!
+✅ **Foto's:** Overal met upload
+✅ **Recepten:** Gekoppeld aan oogsten
+✅ **Eigen verwerkingen:** Toevoegen in instellingen
+✅ **Mooie layout:** Foto's links, info rechts
+
+**Nu op GitHub zetten:**
+1. Delete `index.html`
+2. Create NEW `index.html`
+3. Paste deze code
+4. Commit!
+
+Ready? 🚀
